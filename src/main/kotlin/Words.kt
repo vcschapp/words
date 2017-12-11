@@ -49,7 +49,7 @@ private fun filterWords(poses: List<POS>, prefixes: List<String>) : List<String>
                 .flatMap(Sequence<IIndexWord>::toList)
                 .map { it.lemma }
                 .filter { 3 < it.length && it.indexOfAny(charsToFilter) < 0 }
-                .filter(String::isMostlyAlternateHandTyped)
+                .filter(String::isAcceptable)
                 .filter { prefixMap.isEmpty() || it.hasAnyPrefix(prefixMap) }
     } finally {
         dictionary.close()
@@ -64,9 +64,9 @@ private val leftHandChars = charArrayOf('q', 'w', 'e', 'r', 't',
                                         'a', 's', 'd', 'f', 'g',
                                         'z', 'x', 'c', 'v', 'b')
 
-private val charMap = charMap()
+private val handCharMap = handCharMap()
 
-private fun charMap() : Array<Hand?> {
+private fun handCharMap() : Array<Hand?> {
     val charMap = Array<Hand?>(128) { null }
     leftHandChars.forEach {
         charMap[it.toInt()] = LEFT
@@ -81,40 +81,27 @@ private fun charMap() : Array<Hand?> {
     return charMap
 }
 
-private fun String.isAlternateHandTyped() : Boolean {
-    var prev: Hand? = null
-    forEach {
-        val hand = charMap[it.toInt() and 0x7f]
-        if (hand == prev) {
-            return false
-        } else {
-            prev = hand
-        }
-    }
-    return true
+private const val MAX_PROBLEM_RATIO = 0.50
+
+private fun String.isAcceptable() : Boolean {
+    val problemCount = handRepeatCount() + repeatCount()
+    val problemRatio = problemCount.toDouble() / length.toDouble()
+    return problemRatio < MAX_PROBLEM_RATIO
 }
 
-private const val SAME_HAND_RATIO = 0.20
-
-private fun String.isMostlyAlternateHandTyped() : Boolean {
-    // Rule 1: No adjacent repeated characters, e.g. 'tt'.
-    // Rule 2: Not more than X% of transitions may be to same hand.
-    var prevHand: Hand? = null
-    var prevChar = '\u0000'
-    var sameHandCount = 0
-    forEach {
-        val hand = charMap[it.toInt() and 0x7f]
-        if (hand == prevHand) {
-            if (it == prevChar) {
-                return false // Repeat character.
-            } else {
-                ++sameHandCount
-            }
+private fun String.handRepeatCount() : Int {
+    var prev = if (isNotEmpty()) handCharMap[first().toInt() and 0x7f] else null
+    return (1..lastIndex).map {
+        val hand = handCharMap[this[it].toInt() and 0x7f]
+        if (hand == prev) 1 else {
+            prev = hand
+            0
         }
-        prevHand = hand
-        prevChar = it
-    }
-    return sameHandCount.toDouble() / (length.toDouble() - 1.0) < SAME_HAND_RATIO
+    }.sum()
+}
+
+private fun String.repeatCount() : Int {
+    return (1..lastIndex).map {  if (get(it) == get(it-1)) 1 else 0 }.sum()
 }
 
 private fun String.hasAnyPrefix(prefixMap: Map<Int, List<String>>) : Boolean {
