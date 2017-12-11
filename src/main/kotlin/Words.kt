@@ -84,7 +84,7 @@ private fun handCharMap() : Array<Hand?> {
 private const val MAX_PROBLEM_RATIO = 0.50
 
 private fun String.isAcceptable() : Boolean {
-    val problemCount = handRepeatCount() + repeatCount()
+    val problemCount = handRepeatCount()
     val problemRatio = problemCount.toDouble() / length.toDouble()
     return problemRatio < MAX_PROBLEM_RATIO
 }
@@ -98,10 +98,6 @@ private fun String.handRepeatCount() : Int {
             0
         }
     }.sum()
-}
-
-private fun String.repeatCount() : Int {
-    return (1..lastIndex).map {  if (get(it) == get(it-1)) 1 else 0 }.sum()
 }
 
 private fun String.hasAnyPrefix(prefixMap: Map<Int, List<String>>) : Boolean {
